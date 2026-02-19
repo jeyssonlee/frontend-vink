@@ -130,8 +130,13 @@ const data = {
       items: [
         {
           title: "Cuentas por Cobrar",
-          url: "/dashboard/cobranzas", // Ruta de la página que creamos
+          url: "/dashboard/cxc", // Ruta de la página que creamos
           icon: Wallet
+        },
+        {
+          // 2. EL MÓDULO NUEVO (OPERATIVO)
+          title: "Cobranza",
+          url: "/dashboard/finanzas/cobranza",
         },
       ]
     },
