@@ -14,7 +14,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-import { api } from "@/lib/api";
+import { api, API_URL } from "@/lib/api";
 import { getEmpresaId } from "@/lib/auth-utils";
 
 // UI Components
@@ -81,7 +81,6 @@ interface CobranzaPendiente {
   facturas_afectadas: { factura: { serie: string; numero_consecutivo: number }; monto_aplicado: string }[];
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 // --- SCHEMA REGISTRO MANUAL ---
 const manualPaymentSchema = z.object({
     metodo: z.enum(["EFECTIVO_USD", "ZELLE", "PAGO_MOVIL", "TRANSFERENCIA", "PUNTO_VENTA"]),
@@ -646,7 +645,7 @@ export default function GestionCobranzasPage() {
     {verComprobante && (
   <img 
     // Esta lógica limpia barras duplicadas y asegura que la imagen cargue sí o sí
-    src={`http://localhost:3000/${verComprobante}`.replace(/([^:]\/)\/+/g, "$1")} 
+    src={verComprobante.startsWith('http') ? verComprobante : `${API_URL}/${verComprobante}`.replace(/\\/g, '/').replace(/([^:]\/)\/+/g, "$1")}
     className="max-w-full max-h-full object-contain rounded-md shadow-lg" 
     alt="Comprobante"
     onError={(e) => {
@@ -660,7 +659,7 @@ export default function GestionCobranzasPage() {
       <Button variant="outline" onClick={() => setVerComprobante(null)}>Cerrar</Button>
       {verComprobante && (
         <Button asChild>
-          <a href={`http://localhost:3000${verComprobante}`} target="_blank" rel="noopener noreferrer">
+          <a href={verComprobante.startsWith('http') ? verComprobante : `${API_URL}/${verComprobante}`.replace(/\\/g, '/').replace(/([^:]\/)\/+/g, "$1")} target="_blank" rel="noopener noreferrer">
             Abrir en pestaña nueva
           </a>
         </Button>
