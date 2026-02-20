@@ -644,12 +644,12 @@ export default function GestionCobranzasPage() {
     <div className="flex-1 bg-slate-950 flex items-center justify-center p-4 overflow-hidden">
     {verComprobante && (
   <img 
-    // Esta lógica limpia barras duplicadas y asegura que la imagen cargue sí o sí
-    src={verComprobante.startsWith('http') ? verComprobante : `${API_URL}/${verComprobante}`.replace(/\\/g, '/').replace(/([^:]\/)\/+/g, "$1")}
-    className="max-w-full max-h-full object-contain rounded-md shadow-lg" 
+    // Concatenamos el puerto del backend y aseguramos la ruta correcta
+    src={`http://localhost:3000${verComprobante.startsWith('/uploads') ? '' : '/uploads'}${verComprobante.startsWith('/') ? '' : '/'}${verComprobante}`.replace(/\/+/g, '/').replace(':/', '://')} 
+    className="max-w-full max-h-full object-contain rounded-md" 
     alt="Comprobante"
     onError={(e) => {
-      (e.target as HTMLImageElement).src = "https://placehold.co/600x800?text=Error+al+cargar+imagen";
+        (e.target as HTMLImageElement).src = "https://placehold.co/400x600?text=Error+al+cargar+imagen";
     }}
   />
 )}

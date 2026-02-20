@@ -3,7 +3,7 @@ import axios from "axios";
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export const api = axios.create({
-  baseURL: API_URL, // Asegúrate que este sea tu puerto correcto
+  baseURL: "http://localhost:3000/api", // Asegúrate que este sea tu puerto correcto
 });
 
 // INTERCEPTOR MÁGICO 🧙‍♂️
