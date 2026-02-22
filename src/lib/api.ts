@@ -3,20 +3,21 @@ import axios from "axios";
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export const api = axios.create({
-  baseURL: "http://localhost:3000/api", // Asegúrate que este sea tu puerto correcto
+  baseURL: "http://localhost:3000/api",
+  withCredentials: true,
 });
 
 // INTERCEPTOR MÁGICO 🧙‍♂️
 // Antes de cada petición, busca el token y pégalo en la cabecera
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
+//api.interceptors.request.use((config) => {
+  //if (typeof window !== "undefined") {
+    //const token = localStorage.getItem("token");
+    //if (token) {
+      //config.headers.Authorization = `Bearer ${token}`;
+    //}
+  //}
+  //return config;
+//});
 
 // Manejador de errores global
 api.interceptors.response.use(

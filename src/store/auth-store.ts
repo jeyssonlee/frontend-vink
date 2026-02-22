@@ -10,22 +10,20 @@ interface User {
 }
 
 interface AuthState {
-  token: string | null;
-  user: User | null;
-  setAuth: (token: string, user: User) => void;
-  logout: () => void;
+  user: User | null; // 🚀 Ya no hay 'token' aquí
+  setUser: (user: User) => void;
+  clearUser: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      token: null,
       user: null,
-      setAuth: (token, user) => set({ token, user }),
-      logout: () => set({ token: null, user: null }),
+      setUser: (user) => set({ user }),
+      clearUser: () => set({ user: null }),
     }),
     {
-      name: 'erp-auth-storage', // Así se guardará en el navegador
+      name: 'erp-user-data', // Cambiamos el nombre para limpiar el caché viejo
     }
   )
 );

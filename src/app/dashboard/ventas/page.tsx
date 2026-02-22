@@ -77,13 +77,42 @@ export default function OdooInvoicePage() {
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
       fecha_emision: new Date(),
-      metodo_pago: "EFECTIVO",
+      metodo_pago: "EFECTIVO_USD",
       dias_credito: 0,
-      tasa_cambio: 65.50, 
+      tasa_cambio: 0, 
       items: [],
       id_cliente: ""
     }
-  });
+ });
+
+    // 🚀 SOLUCIÓN #22: Buscar la tasa real al abrir la pantalla
+  useEffect(() => {
+    const buscarTasaDia = async () => {
+      try {
+        // Consultamos el nuevo endpoint que acabas de crear
+        const response = await api.get('/monitor-dolar/bcv');
+        const data = response.data;
+        
+        if (data && data.tasa) {
+          // Inyectamos el valor real en el formulario
+          form.setValue('tasa_cambio', data.tasa);
+          
+          if (data.origen === 'FALLBACK') {
+            toast.warning(`Usando tasa de emergencia (Bs. ${data.tasa}). Verifica la conexión de tu servidor.`);
+          } else {
+            // Opcional: Avisarle al usuario que la tasa se cargó con éxito
+            toast.success(`Tasa BCV sincronizada: Bs. ${data.tasa}`);
+          }
+        }
+      } catch (error) {
+        console.error("Error obteniendo tasa:", error);
+        toast.error("No se pudo obtener la tasa del BCV. Por favor, ingresa la tasa manualmente.");
+        // Si falla, el cajero igual puede escribirla a mano en el input
+      }
+    };
+
+    buscarTasaDia();
+  }, [form]); // Se ejecuta al montar el componente
 
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
@@ -326,9 +355,15 @@ export default function OdooInvoicePage() {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="EFECTIVO">Contado</SelectItem>
-                                <SelectItem value="CREDITO">Crédito (Neto)</SelectItem>
-                                <SelectItem value="ZELLE">Zelle</SelectItem>
+                            <SelectItem value="EFECTIVO_USD">Efectivo ($)</SelectItem>
+                            <SelectItem value="EFECTIVO_BSD">Efectivo (Bs)</SelectItem>
+                            <SelectItem value="PUNTO_VENTA">Punto de Venta (TDD/TDC)</SelectItem>
+                            <SelectItem value="PAGO_MOVIL">Pago Móvil</SelectItem>
+                            <SelectItem value="TRANSFERENCIA">Transferencia Nacional</SelectItem>
+                            <SelectItem value="ZELLE">Zelle</SelectItem>
+                            <SelectItem value="BINANCE">Binance / USDT</SelectItem>
+                            {/* Mantenemos tu lógica para ventas a crédito */}
+                            <SelectItem value="CREDITO">Crédito (Neto)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
