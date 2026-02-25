@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useAuthStore } from "@/store/auth-store"
 import {
   GalleryVerticalEnd,
   SquareTerminal,
@@ -14,7 +15,9 @@ import {
   UserCog,
   Briefcase,
   BarChart3,
-  Wallet // 👈 1. Importamos el icono Wallet
+  Wallet,
+  LogOut,
+
 } from "lucide-react"
 
 import {
@@ -41,10 +44,7 @@ import {
 
 // Definimos la estructura del menú
 const data = {
-  user: {
-    name: "Jeysson Admin",
-    email: "admin@erp.com",
-  },
+
   items: [
     {
       title: "Dashboard",
@@ -161,6 +161,7 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const user = useAuthStore((state) => state.user);
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -231,10 +232,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="p-4 text-xs text-slate-400 border-t">
-            Usuario: {data.user.name}
+  <SidebarMenu>
+    <SidebarMenuItem>
+      <div className="flex items-center gap-3 px-3 py-2 text-xs text-slate-500 border-t">
+        <div className="size-7 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">
+        {(user?.nombre?.charAt(0) || "U")}
         </div>
-      </SidebarFooter>
+        <div className="grid flex-1 text-left leading-tight">
+          <span className="truncate font-semibold text-slate-700">{user?.nombre || "Usuario"}</span>
+          <span className="truncate text-[10px] text-slate-400">{user?.email || ""}</span>
+        </div>
+      </div>
+    </SidebarMenuItem>
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        tooltip="Cerrar Sesión"
+        onClick={() => {
+          document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+          window.location.href = "/login";
+        }}
+        className="text-slate-400 hover:bg-red-50 hover:text-red-600"
+      >
+        <LogOut className="size-4" />
+        <span className="text-xs font-bold uppercase tracking-wider">Cerrar Sesión</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  </SidebarMenu>
+</SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

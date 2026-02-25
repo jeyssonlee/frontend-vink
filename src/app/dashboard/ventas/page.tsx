@@ -203,7 +203,11 @@ export default function OdooInvoicePage() {
         setClienteObj(null);
         setBusquedaCliente("");
     } catch (error: any) {
-        toast.error("Error al guardar");
+        const mensaje = error?.response?.data?.message || "Error al guardar la factura";
+        toast.error(mensaje, {
+            duration: 6000,
+            description: "Verifica el stock y los precios antes de continuar."
+        });
     } finally {
         setProcesando(false);
     }
