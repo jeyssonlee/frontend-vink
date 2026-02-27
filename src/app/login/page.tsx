@@ -91,14 +91,14 @@ export default function LoginPage() {
       {/* ... Todo el JSX del formulario queda exactamente igual ... */}
       <Card className="w-full max-w-md shadow-xl border-t-4 border-indigo-600">
         <CardHeader>
-          <CardTitle className="text-center text-2xl">ERP VINK</CardTitle>
+          <CardTitle className="text-center text-2xl">VINK</CardTitle>
           <CardDescription className="text-center">Inicie sesión para continuar</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField control={form.control} name="usuario" render={({ field }) => (
-                <FormItem><FormLabel>Correo</FormLabel><FormControl><div className="relative"><Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400"/><Input placeholder="admin@erp.com" className="pl-9" {...field} /></div></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Correo</FormLabel><FormControl><div className="relative"><Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400"/><Input placeholder="ejemplo@correo.com" className="pl-9" {...field} /></div></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="contrasena" render={({ field }) => (
                 <FormItem><FormLabel>Contraseña</FormLabel><FormControl><div className="relative"><Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400"/><Input type={showPassword?"text":"password"} className="pl-9 pr-10" {...field} /><Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-9 w-9 px-0" onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff className="h-4 w-4"/>:<Eye className="h-4 w-4"/>}</Button></div></FormControl><FormMessage /></FormItem>

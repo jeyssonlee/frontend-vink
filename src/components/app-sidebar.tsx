@@ -17,6 +17,7 @@ import {
   BarChart3,
   Wallet,
   LogOut,
+  Shield,
 
 } from "lucide-react"
 
@@ -69,6 +70,11 @@ const data = {
           url: "/dashboard/gestion-id/vendedores",
           icon: Briefcase
         },
+        {
+          title: "Roles y Permisos",
+          url: "/dashboard/gestion-id/roles",
+          icon: Shield
+        }
       ],
     },
     
@@ -110,16 +116,30 @@ const data = {
       ],
     },
 
-    // --- VENTAS Y CLIENTES ---
+    // --- VENTAS ---
     {
       title: "Ventas / POS",
       url: "/dashboard/ventas",
       icon: ShoppingCart,
     },
+    
+
+    // --- GESTIÓN DE CLIENTES ---
     {
-      title: "Clientes",
-      url: "/dashboard/clientes",
+      title: "Gestión de Clientes",
+      url: "#", // Queda con '#' porque ahora es el botón que despliega el menú
       icon: Users,
+      isActive: false, // Ponlo en true si quieres que aparezca desplegado por defecto
+      items: [
+        {
+          title: "Cartera Clientes",
+          url: "/dashboard/clientes",
+        },
+        //{
+          //title: "Perfil Cliente",
+          //url: "/dashboard/clientes/[id]", // Redirige al directorio por ahora
+        //},
+      ],
     },
     
     // 👇 2. NUEVO MÓDULO FINANZAS

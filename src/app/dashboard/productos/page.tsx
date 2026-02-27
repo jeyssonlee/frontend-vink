@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { BadgeDollarSign } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -48,6 +49,7 @@ interface Producto {
   marca?: string;
   categoria?: string;
   codigo_barras?: string;
+  imagen?: string;
 }
 
 const formSchema = z.object({
@@ -57,6 +59,7 @@ const formSchema = z.object({
   codigo_barras: z.string().optional(),
   marca: z.string().optional(),
   categoria: z.string().optional(),
+  imagen: z.string().optional(),
 });
 
 export default function ProductosPage() {
@@ -71,7 +74,7 @@ export default function ProductosPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: { 
-      nombre: "", codigo: "", precio: 0, codigo_barras: "", marca: "", categoria: "" 
+      nombre: "", codigo: "", precio: 0, codigo_barras: "", marca: "", categoria: "", imagen: "" 
     },
   });
 
@@ -120,6 +123,37 @@ export default function ProductosPage() {
     }
   };
 
+  const handlePricesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const loadingToast = toast.loading("Actualizando precios...");
+
+    try {
+      // Ajusta la ruta según cómo la hayas definido en tu controlador de NestJS
+      const { data } = await api.post("/productos/importar-precios", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      toast.dismiss(loadingToast);
+      
+      // Usamos las variables que devuelve nuestro nuevo endpoint (creados y actualizados)
+      toast.success(
+        `¡Listo! ${data.actualizados} actualizados y ${data.creados} creados.`
+      );
+      
+      fetchProductos();
+    } catch (error) {
+      toast.dismiss(loadingToast);
+      toast.error("Error al actualizar los precios");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   const handleDelete = async (id: string, nombre: string) => {
     if (!confirm(`¿Eliminar "${nombre}"?`)) return;
     try {
@@ -140,6 +174,7 @@ export default function ProductosPage() {
       codigo_barras: producto.codigo_barras || "",
       marca: producto.marca || "",
       categoria: producto.categoria || "",
+      imagen: producto.imagen || "",
     });
     setIsDialogOpen(true);
   };
@@ -159,7 +194,8 @@ export default function ProductosPage() {
         marca: values.marca,
         categoria: values.categoria,
         precio_base: Number(values.precio), 
-        id_empresa: idEmpresa 
+        id_empresa: idEmpresa,
+        imagen: values.imagen
       };
 
       if (productoEditar) {
@@ -189,8 +225,12 @@ export default function ProductosPage() {
         <div className="flex gap-2">
             <input type="file" id="xl-up" className="hidden" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
             <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-slate-600" onClick={() => document.getElementById('xl-up')?.click()}>
-                <FileSpreadsheet className="mr-2 h-3.5 w-3.5 text-green-600" /> Carga Masiva
+                <FileSpreadsheet className="mr-2 h-3.5 w-3.5 text-green-600" /> Importar Productos
             </Button>
+            <input type="file" id="xl-up-precios" className="hidden" accept=".xlsx,.xls" onChange={handlePricesUpload} />
+    <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-slate-600" onClick={() => document.getElementById('xl-up-precios')?.click()}>
+        <BadgeDollarSign className="mr-2 h-3.5 w-3.5 text-blue-600" /> Cargar Precios
+    </Button>
             <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-slate-600" onClick={fetchProductos}>
                 <RefreshCcw className="mr-2 h-3.5 w-3.5" /> Actualizar
             </Button>
@@ -321,6 +361,15 @@ export default function ProductosPage() {
               </div>
               <FormField control={form.control} name="nombre" render={({ field }: any) => (
                 <FormItem><FormLabel className="text-xs font-bold text-slate-500 uppercase">Descripción Comercial</FormLabel><FormControl><Input placeholder="Nombre del producto" className="h-9 text-sm" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="imagen" render={({ field }: any) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-bold text-slate-500 uppercase">URL de la Imagen</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://mi-servidor.com/foto.jpg" className="h-9 text-sm" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
               <div className="grid grid-cols-3 gap-4">
                 <FormField control={form.control} name="marca" render={({ field }: any) => (

@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { 
   Plus, Pencil, Trash2, Search, Users, MapPin, 
-  Phone, Briefcase, UserPlus, RefreshCcw, Building2, Fingerprint
+  Phone, Briefcase, UserPlus, RefreshCcw, Building2, Fingerprint,
+  Eye // <-- 1. Nuevo ícono para "Ver Perfil"
 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useRouter } from "next/navigation"; // <-- 2. Importamos el router de Next.js
 
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -65,6 +67,7 @@ interface Cliente {
 }
 
 export default function ClientesPage() {
+  const router = useRouter(); // <-- 3. Inicializamos el router
   const idEmpresa = getEmpresaId();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [vendedores, setVendedores] = useState<any[]>([]);
@@ -118,7 +121,6 @@ export default function ClientesPage() {
     }
   };
 
-  // 🟢 FUNCIÓN DE ELIMINAR RESTAURADA
   const handleDelete = async (id: string) => {
     if (!confirm("¿Eliminar cliente?")) return;
     try {
@@ -220,6 +222,16 @@ export default function ClientesPage() {
                                 </TableCell>
                                 <TableCell className="text-right pr-6">
                                     <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                        {/* 4. Nuevo botón de Perfil Analítico */}
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            title="Ver Perfil 360"
+                                            className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" 
+                                            onClick={() => router.push(`/dashboard/clientes/${c.id_cliente}`)}
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                        </Button>
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => { setEditarItem(c); form.reset({ ...c, telefono: c.numero_telefonico, id_vendedor: c.vendedor?.id_vendedor || "" }); setIsDialogOpen(true); }}>
                                             <Pencil className="h-4 w-4" />
                                         </Button>
@@ -242,6 +254,7 @@ export default function ClientesPage() {
       </main>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        {/* Tu modal de formulario sigue idéntico aquí... */}
         <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl">
           <DialogHeader className="p-6 bg-slate-900 text-white flex flex-row items-center gap-4">
             <div className="h-10 w-10 bg-white/10 rounded-lg flex items-center justify-center">
