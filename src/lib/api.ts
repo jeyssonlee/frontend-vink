@@ -1,33 +1,28 @@
 import axios from "axios";
+import { useAuthStore } from "@/store/auth-store";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+export const API_URL = "http://localhost:3000";
 
 export const api = axios.create({
   baseURL: "http://localhost:3000/api",
   withCredentials: true,
 });
 
-// INTERCEPTOR MÁGICO 🧙‍♂️
-// Antes de cada petición, busca el token y pégalo en la cabecera
-//api.interceptors.request.use((config) => {
-  //if (typeof window !== "undefined") {
-    //const token = localStorage.getItem("token");
-    //if (token) {
-      //config.headers.Authorization = `Bearer ${token}`;
-    //}
-  //}
-  //return config;
-//});
+// Interceptor: agrega el token desde el store antes de cada request
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().token; // ← lee directo del store, sin hooks
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 // Manejador de errores global
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Si el error es 401 (No autorizado), limpia la sesión
     if (error.response?.status === 401) {
       console.warn("Sesión expirada o inválida");
-      // Opcional: redirigir al login si quieres ser estricto
-      // window.location.href = "/"; 
     }
     return Promise.reject(error);
   }

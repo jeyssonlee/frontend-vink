@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
+import { usePermisosStore } from "@/store/permisos.store"; // ← NUEVO
 import { createSecureSession } from "@/app/actions/auth";
 
 const formSchema = z.object({
@@ -25,8 +26,9 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   
-  // Asumimos que limpiaste el store como vimos antes y ahora usas setUser
   const setUser = useAuthStore((state) => state.setUser);
+  const setToken = useAuthStore((state) => state.setToken); // ← NUEVO
+  const { fetchPermisos } = usePermisosStore();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -36,7 +38,6 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      // 1. Login al Backend
       const { data } = await api.post("/auth/login", { 
         correo: values.usuario, 
         clave: values.contrasena 
@@ -44,39 +45,44 @@ export default function LoginPage() {
       
       const token = data.access_token;
       
-      // 2. 🔓 DECODIFICAR EL TOKEN PARA EXTRAER DATOS
+      // Decodificar token para extraer datos
       let id_empresa = null;
       let id_almacen = null;
+      let rol: string | null = null;
 
       try {
-          const base64Url = token.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          }).join(''));
-          
-          const decoded = JSON.parse(jsonPayload);
-          id_empresa = decoded.id_empresa;
-          id_almacen = decoded.sucursalId;
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          window.atob(base64).split('').map((c) =>
+            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+          ).join('')
+        );
+        const decoded = JSON.parse(jsonPayload);
+        id_empresa = decoded.id_empresa;
+        id_almacen = decoded.sucursalId;
+        rol = decoded.rol;
       } catch (e) {
-          console.error("Error decodificando token", e);
+        console.error("Error decodificando token", e);
       }
 
-      // 3. 🚀 GUARDADO SEGURO DEL TOKEN EN COOKIE HTTPONLY
+      // Guardar token en cookie HttpOnly
       await createSecureSession(token);
 
-      // 4. GUARDAMOS LOS DATOS INOFENSIVOS EN ZUSTAND (No el token)
-      // Agregamos la empresa y almacén al objeto usuario para tenerlos disponibles
-      const perfilUsuario = {
-        ...data.usuario,
-        id_empresa: id_empresa,
-        id_almacen: id_almacen
-      };
-      
-      setUser(perfilUsuario);
+      // Guardar perfil y token en Zustand
+      setToken(token); // ← NUEVO
+      setUser({ ...data.usuario, id_empresa, id_almacen });
+
+      // ✅ Cargar permisos DESPUÉS de que la cookie ya está seteada
+      await fetchPermisos();
 
       toast.success("Bienvenido");
-      router.push("/dashboard"); 
+
+      if (rol === 'ROOT') {
+        router.push("/dashboard/root");
+      } else {
+        router.push("/dashboard");
+      }
 
     } catch (error: any) {
       console.error(error);
@@ -88,7 +94,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
-      {/* ... Todo el JSX del formulario queda exactamente igual ... */}
       <Card className="w-full max-w-md shadow-xl border-t-4 border-indigo-600">
         <CardHeader>
           <CardTitle className="text-center text-2xl">VINK</CardTitle>

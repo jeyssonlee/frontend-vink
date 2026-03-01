@@ -49,10 +49,34 @@ const MODULOS_PERMISOS = [
     ],
   },
   {
+    modulo: "Productos",
+    permisos: [
+      { key: "ver_productos", label: "Ver Productos" },
+      { key: "crear_productos", label: "Crear Productos" },
+      { key: "editar_productos", label: "Editar Productos" },
+      { key: "eliminar_productos", label: "Eliminar Productos" },
+    ],
+  },
+  {
     modulo: "Compras",
     permisos: [
       { key: "ver_compras", label: "Ver compras" },
       { key: "crear_compras", label: "Crear compras" },
+    ],
+  },
+  {
+    modulo: "Proveedores",
+    permisos: [
+      { key: "ver_proveedores", label: "Ver proveedores" },
+      { key: "crear_proveedores", label: "Crear proveedores" },
+      { key: "editar_proveedores", label: "Editar proveedores" },
+    ],
+  },
+  {
+    modulo: "Almacenes",
+    permisos: [
+      { key: "ver_almacenes", label: "Ver almacenes" },
+      { key: "editar_almacenes", label: "Editar almacenes" },
     ],
   },
   {
@@ -76,6 +100,7 @@ const MODULOS_PERMISOS = [
       { key: "ver_clientes", label: "Ver clientes" },
       { key: "crear_clientes", label: "Crear clientes" },
       { key: "editar_clientes", label: "Editar clientes" },
+      { key: "ver_perfil_cliente", label: "Ver Perfil Cliente" },
     ],
   },
   {
@@ -91,6 +116,15 @@ const MODULOS_PERMISOS = [
     permisos: [
       { key: "ver_cxc", label: "Ver cuentas por cobrar" },
       { key: "ver_reportes", label: "Ver reportes" },
+    ],
+  },
+  {
+    modulo: "Vendedores",
+    permisos: [
+      { key: "ver_vendedores", label: "Ver vendedores" },
+      { key: "crear_vendedores", label: "Crear vendedores" },
+      { key: "editar_vendedores", label: "Editar vendedores" },
+      { key: "eliminar_vendedores", label: "Eliminar vendedores" },
     ],
   },
 ];

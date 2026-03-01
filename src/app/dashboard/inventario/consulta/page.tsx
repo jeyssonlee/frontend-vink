@@ -38,7 +38,7 @@ export default function ConsultaInventarioPage() {
   const fetchInventario = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get(`/productos?id_empresa=${idEmpresa}`);
+      const { data } = await api.get(`/productos/inventario-consulta?id_empresa=${idEmpresa}`)
       
       const dataMapeada = data.map((p: any) => ({
           id_producto: p.id_producto,

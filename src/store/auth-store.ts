@@ -7,11 +7,15 @@ interface User {
   email: string;
   rol: string;
   empresa: string;
+  id_empresa: string | null;
+  id_almacen: string | null;
 }
 
 interface AuthState {
-  user: User | null; // 🚀 Ya no hay 'token' aquí
+  user: User | null;
+  token: string | null; // ← NUEVO
   setUser: (user: User) => void;
+  setToken: (token: string) => void; // ← NUEVO
   clearUser: () => void;
 }
 
@@ -19,11 +23,13 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
+      token: null,
       setUser: (user) => set({ user }),
-      clearUser: () => set({ user: null }),
+      setToken: (token) => set({ token }), // ← NUEVO
+      clearUser: () => set({ user: null, token: null }),
     }),
     {
-      name: 'erp-user-data', // Cambiamos el nombre para limpiar el caché viejo
+      name: 'erp-user-data',
     }
   )
 );

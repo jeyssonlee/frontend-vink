@@ -48,6 +48,7 @@ import {
 import { getEmpresaId } from "@/lib/auth-utils";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
+import { usePermisos } from "@/hooks/usePermisos";
 
 const formSchema = z.object({
   razon_social: z.string().min(3, "Nombre obligatorio"),
@@ -67,8 +68,9 @@ interface Cliente {
 }
 
 export default function ClientesPage() {
-  const router = useRouter(); // <-- 3. Inicializamos el router
+  const router = useRouter();
   const idEmpresa = getEmpresaId();
+  const { tienePermiso } = usePermisos();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [vendedores, setVendedores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -222,16 +224,17 @@ export default function ClientesPage() {
                                 </TableCell>
                                 <TableCell className="text-right pr-6">
                                     <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                        {/* 4. Nuevo botón de Perfil Analítico */}
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            title="Ver Perfil 360"
-                                            className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" 
-                                            onClick={() => router.push(`/dashboard/clientes/${c.id_cliente}`)}
-                                        >
-                                            <Eye className="h-4 w-4" />
-                                        </Button>
+                                        {tienePermiso('ver_perfil_cliente') && (
+                                          <Button 
+                                              variant="ghost" 
+                                              size="icon" 
+                                              title="Ver Perfil 360"
+                                              className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" 
+                                              onClick={() => router.push(`/dashboard/clientes/${c.id_cliente}`)}
+                                          >
+                                              <Eye className="h-4 w-4" />
+                                          </Button>
+                                        )}
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => { setEditarItem(c); form.reset({ ...c, telefono: c.numero_telefonico, id_vendedor: c.vendedor?.id_vendedor || "" }); setIsDialogOpen(true); }}>
                                             <Pencil className="h-4 w-4" />
                                         </Button>
