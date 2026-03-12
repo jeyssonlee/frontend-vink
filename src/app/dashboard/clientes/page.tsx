@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { 
   Plus, Pencil, Trash2, Search, Users, MapPin, 
   Phone, Briefcase, UserPlus, RefreshCcw, Building2, Fingerprint,
-  Eye // <-- 1. Nuevo ícono para "Ver Perfil"
+  Eye
 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useRouter } from "next/navigation"; // <-- 2. Importamos el router de Next.js
+import { useRouter } from "next/navigation";
 
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getEmpresaId } from "@/lib/auth-utils";
+import { getEmpresaId, getVendedorId } from "@/lib/auth-utils"; // 👈 importar getVendedorId
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { usePermisos } from "@/hooks/usePermisos";
@@ -70,6 +70,8 @@ interface Cliente {
 export default function ClientesPage() {
   const router = useRouter();
   const idEmpresa = getEmpresaId();
+  const idVendedorLogueado = getVendedorId(); // 👈 id_vendedor del usuario en sesión
+  const esVendedor = !!idVendedorLogueado;    // 👈 true si el usuario es vendedor
   const { tienePermiso } = usePermisos();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [vendedores, setVendedores] = useState<any[]>([]);
@@ -86,12 +88,20 @@ export default function ClientesPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [resClientes, resVendedores] = await Promise.all([
-        api.get("/clientes"),
-        api.get(`/vendedores?id_empresa=${idEmpresa}`)
-      ]);
+
+      // 👇 FIX 1: llamadas separadas para que un 403 en vendedores no mate la lista de clientes
+      const resClientes = await api.get("/clientes");
       setClientes(resClientes.data);
-      setVendedores(resVendedores.data);
+
+      // Solo cargamos vendedores si el usuario NO es vendedor (tiene permiso de verlos)
+      if (!esVendedor) {
+        try {
+          const resVendedores = await api.get(`/vendedores?id_empresa=${idEmpresa}`);
+          setVendedores(resVendedores.data);
+        } catch {
+          // Si falla por permisos, no bloqueamos — el dropdown simplemente no aplica
+        }
+      }
     } catch (error) {
       toast.error("Error al sincronizar datos");
     } finally {
@@ -100,6 +110,19 @@ export default function ClientesPage() {
   };
 
   useEffect(() => { fetchData(); }, [idEmpresa]);
+
+  // 👇 FIX 2: al abrir el modal de nuevo cliente, pre-asignar al vendedor logueado
+  const handleNuevoCliente = () => {
+    setEditarItem(null);
+    form.reset({
+      razon_social: "",
+      rif: "",
+      telefono: "",
+      direccion_fiscal: "",
+      id_vendedor: idVendedorLogueado ?? "", // auto-asigna si es vendedor
+    });
+    setIsDialogOpen(true);
+  };
 
   const filtered = clientes.filter(c => 
     c.razon_social.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -147,15 +170,15 @@ export default function ClientesPage() {
             <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-slate-600" onClick={fetchData}>
                 <RefreshCcw className="mr-2 h-3.5 w-3.5" /> Actualizar
             </Button>
-            <Button size="sm" className="h-8 bg-slate-900 text-xs font-bold uppercase" onClick={() => { setEditarItem(null); form.reset(); setIsDialogOpen(true); }}>
+            {/* 👇 FIX: usar handleNuevoCliente en lugar de reset genérico */}
+            <Button size="sm" className="h-8 bg-slate-900 text-xs font-bold uppercase" onClick={handleNuevoCliente}>
                 <UserPlus className="mr-2 h-3.5 w-3.5" /> Nuevo Cliente
             </Button>
         </div>
       </nav>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
-        
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
                 <div className="h-12 w-12 bg-blue-50 rounded-lg flex items-center justify-center border border-blue-100">
                     <Users className="h-6 w-6 text-blue-600" />
@@ -257,7 +280,6 @@ export default function ClientesPage() {
       </main>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        {/* Tu modal de formulario sigue idéntico aquí... */}
         <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl">
           <DialogHeader className="p-6 bg-slate-900 text-white flex flex-row items-center gap-4">
             <div className="h-10 w-10 bg-white/10 rounded-lg flex items-center justify-center">
@@ -283,26 +305,39 @@ export default function ClientesPage() {
               <FormField control={form.control} name="direccion_fiscal" render={({ field }) => (
                 <FormItem><FormLabel className="text-xs font-bold text-slate-500 uppercase">Dirección Fiscal</FormLabel><FormControl><Input className="h-9 text-sm" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
-              <FormField control={form.control} name="id_vendedor" render={({ field }) => (
+
+              {/* 👇 FIX 3: Si es vendedor, mostrar texto informativo en lugar del dropdown */}
+              {esVendedor ? (
                 <FormItem>
                   <FormLabel className="text-xs font-bold text-slate-500 uppercase">Vendedor Asignado</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="Seleccionar vendedor" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {vendedores.map((v) => (
-                        <SelectItem key={v.id_vendedor} value={v.id_vendedor}>
-                          {v.nombre_apellido}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
+                  <div className="h-9 px-3 flex items-center bg-slate-50 border border-slate-200 rounded-md text-sm text-slate-600">
+                    <Briefcase className="h-3.5 w-3.5 mr-2 text-slate-400" />
+                    Asignado automáticamente a tu usuario
+                  </div>
                 </FormItem>
-              )} />
+              ) : (
+                <FormField control={form.control} name="id_vendedor" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold text-slate-500 uppercase">Vendedor Asignado</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Seleccionar vendedor" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {vendedores.map((v) => (
+                          <SelectItem key={v.id_vendedor} value={v.id_vendedor}>
+                            {v.nombre_apellido}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
+
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)} className="text-xs font-bold">Cancelar</Button>
                 <Button type="submit" className="bg-slate-900 px-6 text-xs font-bold uppercase tracking-wider">Guardar Cambios</Button>

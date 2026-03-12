@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Shield, Plus, Save, ChevronRight, Check, RefreshCcw } from "lucide-react";
+import { Shield, Plus, Save, ChevronRight, Check, RefreshCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
@@ -38,6 +38,7 @@ const MODULOS_PERMISOS = [
       { key: "ver_roles", label: "Ver roles" },
       { key: "crear_roles", label: "Crear roles" },
       { key: "editar_roles", label: "Editar roles" },
+      { key: "eliminar_roles", label: "Eliminar roles" },
     ],
   },
   {
@@ -46,6 +47,7 @@ const MODULOS_PERMISOS = [
       { key: "ver_inventario", label: "Ver inventario" },
       { key: "editar_inventario", label: "Editar inventario" },
       { key: "ver_kardex", label: "Ver kardex" },
+      { key: "ver_inventario_valorizado", label: "Ver inventario valorizado" },
     ],
   },
   {
@@ -62,6 +64,9 @@ const MODULOS_PERMISOS = [
     permisos: [
       { key: "ver_compras", label: "Ver compras" },
       { key: "crear_compras", label: "Crear compras" },
+      { key: "ver_reportes_compras", label: "Ver reportes de compras" },
+      { key: "ver_cuentas_pagar", label: "Ver cuentas por pagar" },
+      { key: "pagar_cuentas", label: "Pago Proveedores" },
     ],
   },
   {
@@ -70,6 +75,7 @@ const MODULOS_PERMISOS = [
       { key: "ver_proveedores", label: "Ver proveedores" },
       { key: "crear_proveedores", label: "Crear proveedores" },
       { key: "editar_proveedores", label: "Editar proveedores" },
+      { key: "eliminar_proveedores", label: "Eliminar proveedores" }, // ← agregar
     ],
   },
   {
@@ -92,6 +98,9 @@ const MODULOS_PERMISOS = [
     permisos: [
       { key: "ver_pedidos", label: "Ver pedidos" },
       { key: "crear_pedidos", label: "Crear pedidos" },
+      { key: "editar_pedidos", label: "Editar pedidos" },       // ← agregar
+      { key: "revisar_pedidos", label: "Revisar pedidos" },     // ← agregar
+      { key: "facturar_pedidos", label: "Facturar pedidos" },   // ← agregar
     ],
   },
   {
@@ -115,7 +124,7 @@ const MODULOS_PERMISOS = [
     modulo: "CXC & Reportes",
     permisos: [
       { key: "ver_cxc", label: "Ver cuentas por cobrar" },
-      { key: "ver_reportes", label: "Ver reportes" },
+      
     ],
   },
   {
@@ -142,6 +151,7 @@ export default function RolesPage() {
   const [rolSeleccionado, setRolSeleccionado] = useState<Rol | null>(null);
   const [permisosEditando, setPermisosEditando] = useState<string[]>([]);
   const [guardando, setGuardando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const [modalNuevoRol, setModalNuevoRol] = useState(false);
   const [nuevoRol, setNuevoRol] = useState({ nombre: "", descripcion: "" });
 
@@ -213,6 +223,22 @@ export default function RolesPage() {
     }
   };
 
+  const handleEliminarRol = async (e: React.MouseEvent, rol: Rol) => {
+    e.stopPropagation();
+    if (!confirm(`¿Estás seguro de eliminar el rol "${rol.nombre}"? Esta acción no se puede deshacer.`)) return;
+    setEliminando(true);
+    try {
+      await api.delete(`/roles/${rol.id_rol}`);
+      toast.success(`Rol "${rol.nombre}" eliminado`);
+      if (rolSeleccionado?.id_rol === rol.id_rol) setRolSeleccionado(null);
+      fetchRoles();
+    } catch (error) {
+      toast.error("Error eliminando rol");
+    } finally {
+      setEliminando(false);
+    }
+  };
+
   const totalPermisos = MODULOS_PERMISOS.reduce((acc, m) => acc + m.permisos.length, 0);
 
   return (
@@ -262,35 +288,43 @@ export default function RolesPage() {
               <div className="p-4 text-center text-slate-400 text-xs italic">Cargando...</div>
             ) : (
               roles.map((rol) => (
-                <button
-                  key={rol.id_rol}
-                  onClick={() => handleSeleccionarRol(rol)}
-                  className={cn(
-                    "w-full flex items-center justify-between p-3 rounded-lg mb-1 text-left transition-all group",
-                    rolSeleccionado?.id_rol === rol.id_rol
-                      ? "bg-slate-900 text-white"
-                      : "hover:bg-slate-50 text-slate-700"
-                  )}
-                >
-                  <div>
-                    <div className={cn(
-                      "font-bold text-sm",
-                      rolSeleccionado?.id_rol === rol.id_rol ? "text-white" : "text-slate-800"
-                    )}>
-                      {rol.nombre}
+                <div key={rol.id_rol} className="flex items-center gap-1 mb-1">
+                  <button
+                    onClick={() => handleSeleccionarRol(rol)}
+                    className={cn(
+                      "flex-1 flex items-center justify-between p-3 rounded-lg text-left transition-all group",
+                      rolSeleccionado?.id_rol === rol.id_rol
+                        ? "bg-slate-900 text-white"
+                        : "hover:bg-slate-50 text-slate-700"
+                    )}
+                  >
+                    <div>
+                      <div className={cn(
+                        "font-bold text-sm",
+                        rolSeleccionado?.id_rol === rol.id_rol ? "text-white" : "text-slate-800"
+                      )}>
+                        {rol.nombre}
+                      </div>
+                      <div className={cn(
+                        "text-[11px] mt-0.5",
+                        rolSeleccionado?.id_rol === rol.id_rol ? "text-slate-300" : "text-slate-400"
+                      )}>
+                        {rol.permisos.length} permisos
+                      </div>
                     </div>
-                    <div className={cn(
-                      "text-[11px] mt-0.5",
-                      rolSeleccionado?.id_rol === rol.id_rol ? "text-slate-300" : "text-slate-400"
-                    )}>
-                      {rol.permisos.length} permisos
-                    </div>
-                  </div>
-                  <ChevronRight className={cn(
-                    "h-4 w-4 shrink-0",
-                    rolSeleccionado?.id_rol === rol.id_rol ? "text-slate-300" : "text-slate-300 group-hover:text-slate-500"
-                  )} />
-                </button>
+                    <ChevronRight className={cn(
+                      "h-4 w-4 shrink-0",
+                      rolSeleccionado?.id_rol === rol.id_rol ? "text-slate-300" : "text-slate-300 group-hover:text-slate-500"
+                    )} />
+                  </button>
+                  <button
+                    onClick={(e) => handleEliminarRol(e, rol)}
+                    disabled={eliminando}
+                    className="p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               ))
             )}
           </div>

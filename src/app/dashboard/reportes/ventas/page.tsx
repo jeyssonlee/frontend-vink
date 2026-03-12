@@ -94,92 +94,29 @@ export default function ReporteVentasPage() {
   const categorias = useMemo(() => Array.from(new Set(data.map(i => i.categoria).filter(Boolean))).sort(), [data]);
 
   const fetchData = async () => {
-    if (!idEmpresa) {
-      console.error("❌ idEmpresa es null/undefined - revisa getEmpresaId()");
-      return;
-    }
+    if (!idEmpresa) return;
     try {
       setLoading(true);
-      const res = await api.get(`/facturas?id_empresa=${idEmpresa}&relaciones=detalles,detalles.producto,vendedor`);
-      
-      console.log("📦 Total facturas recibidas:", res.data.length);
-      console.log("📋 Primera factura (raw):", res.data[0]);
-      console.log("📋 Detalles de la primera factura:", res.data[0]?.detalles);
-
-      const lineas: VentaLinea[] = [];
-
-      res.data.forEach((factura: any) => {
-        console.log(`🧾 Factura ${factura.id_factura} | Estado: ${factura.estado} | Detalles: ${factura.detalles?.length ?? 'SIN DETALLES'}`);
-
-        if (factura.estado === 'ANULADA') {
-          console.log("⏭️ Saltando factura ANULADA");
-          return;
-        }
-
-        const detalles = factura.detalles || [];
-        let fechaFac = new Date(factura.fecha_emision);
-        if (!isValid(fechaFac)) fechaFac = new Date();
-
-        let numeroVisual = "BORRADOR";
-        if (factura.numero_consecutivo) {
-          const serie = factura.serie || 'A';
-          const correlativo = String(factura.numero_consecutivo).padStart(6, '0');
-          numeroVisual = `${serie}-${correlativo}`;
-        }
-
-        detalles.forEach((detalle: any) => {
-            console.log("👤 Vendedor de factura:", factura.vendedor);
-
-          const cantidad = safeNum(detalle.cantidad);
-          const costoUnitario = safeNum(detalle.costo_historico);
-          const costoTotal = costoUnitario * cantidad;
-          const venta = safeNum(detalle.total_linea);
-
-          let ganancia = safeNum(detalle.ganancia_neta);
-          if (ganancia === 0 && (venta > 0 || costoTotal > 0)) {
-            ganancia = venta - costoTotal;
-          }
-
-          const margen = venta > 0 ? (ganancia / venta) * 100 : 0;
-
-          const linea: VentaLinea = {
-            id_detalle: detalle.id,
-            fecha: fechaFac,
-            nro_factura: numeroVisual,
-            vendedor: factura.vendedor?.nombre_apellido || 'Sin Asignar',
-            codigo: detalle.codigo_producto || 'N/A',
-            producto: detalle.nombre_producto || 'Producto desconocido',
-            marca: detalle.producto?.marca || 'GENÉRICO',
-            categoria: detalle.producto?.categoria || 'GENERAL',
-            cantidad: cantidad,
-            costo_total: costoTotal,
-            precio_venta: safeNum(detalle.precio_unitario),
-            total_venta: venta,
-            ganancia: ganancia,
-            margen_porcentaje: safeNum(margen),
-            estado: factura.estado || 'BORRADOR'
-          };
-
-          console.log("✅ Línea construida:", linea);
-          lineas.push(linea);
-        });
-      });
-
-      console.log("📊 Total líneas procesadas:", lineas.length);
-      console.log("📅 Filtro fechaInicio:", fechaInicio);
-      console.log("📅 Filtro fechaFin:", fechaFin);
-
-      lineas.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+  
+      const params: Record<string, string> = { id_empresa: idEmpresa };
+      if (fechaInicio) params.fecha_inicio = fechaInicio.toISOString().split('T')[0];
+      if (fechaFin)    params.fecha_fin    = fechaFin.toISOString().split('T')[0];
+  
+      const res = await api.get(`/facturas/reporte-ventas`, { params });
+  
+      const lineas: VentaLinea[] = res.data.lineas.map((l: any) => ({
+        ...l,
+        fecha: new Date(l.fecha), // el backend manda string, la interfaz espera Date
+      }));
+  
       setData(lineas);
-
     } catch (error) {
-      toast.error("Error cargando ventas");
-      console.error("💥 Error en fetchData:", error);
+      toast.error("Error cargando reporte de ventas");
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
-
   useEffect(() => { fetchData(); }, [idEmpresa]);
 
   const filtered = useMemo(() => {

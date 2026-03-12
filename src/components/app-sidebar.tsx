@@ -20,6 +20,8 @@ import {
   LogOut,
   LayoutDashboard,
   ChevronRight,
+  ClipboardList,
+  Building2, // 👈 NUEVO
 } from "lucide-react"
 
 import {
@@ -44,8 +46,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
-
 interface SubItem {
   title: string
   url: string
@@ -57,6 +57,7 @@ interface MenuItem {
   url: string
   icon: React.ComponentType<{ className?: string }>
   soloRoot?: boolean
+  soloSuperAdmin?: boolean // 👈 NUEVO flag
   permisosRequeridos?: string[]
   items?: SubItem[]
 }
@@ -65,8 +66,6 @@ interface MenuGroup {
   grupo: string
   items: MenuItem[]
 }
-
-// ─── Menú organizado por flujo de trabajo ─────────────────────────────────────
 
 const menuData: MenuGroup[] = [
   {
@@ -80,15 +79,31 @@ const menuData: MenuGroup[] = [
       },
     ],
   },
-
+  
   {
     grupo: "Operaciones",
     items: [
       {
-        title: "Ventas / POS",
-        url: "/dashboard/ventas",
+        title: "Ventas",
+        url: "#",
         icon: ShoppingCart,
-        permisosRequeridos: ["ver_ventas"],
+        permisosRequeridos: ["ver_ventas", "ver_reportes_ventas"],
+        items:[
+          { title: "Facturación", url: "/dashboard/ventas", permisosRequeridos: ["ver_ventas"] },
+          { title: "Reporte de Ventas", url: "/dashboard/reportes/ventas", permisosRequeridos: ["ver_reportes_ventas"] }
+        ],
+      },
+      {
+        title: "Pedidos",
+        url: "#",
+        icon: ClipboardList,
+        permisosRequeridos: ["ver_pedidos", "crear_pedidos", "revisar_pedidos", "facturar_pedidos"],
+        items: [
+          { title: "Nuevo Pedido", url: "/dashboard/pedidos/nuevo", permisosRequeridos: ["crear_pedidos"] },
+          { title: "Mis Pedidos", url: "/dashboard/pedidos", permisosRequeridos: ["ver_pedidos"] },
+          { title: "Bandeja de Revisión", url: "/dashboard/pedidos/bandeja", permisosRequeridos: ["revisar_pedidos"] },
+          { title: "Facturación", url: "/dashboard/pedidos/facturacion", permisosRequeridos: ["facturar_pedidos"] },
+        ],
       },
       {
         title: "Clientes",
@@ -120,11 +135,12 @@ const menuData: MenuGroup[] = [
         title: "Inventario",
         url: "#",
         icon: Package,
-        permisosRequeridos: ["ver_inventario", "ver_kardex", "ver_productos"],
+        permisosRequeridos: ["ver_inventario", "ver_kardex", "ver_productos", "ver_inventario_valorizado"],
         items: [
           { title: "Maestro Productos", url: "/dashboard/productos", permisosRequeridos: ["ver_productos"] },
           { title: "Consulta Stock", url: "/dashboard/inventario/consulta", permisosRequeridos: ["ver_inventario"] },
           { title: "Reporte Kardex", url: "/dashboard/inventario/kardex", permisosRequeridos: ["ver_kardex"] },
+          { title: "Inventario Valorizado", url: "/dashboard/reportes/inventario-valorizado", permisosRequeridos: ["ver_inventario_valorizado"] },
         ],
       },
       {
@@ -137,16 +153,17 @@ const menuData: MenuGroup[] = [
         title: "Compras",
         url: "#",
         icon: ShoppingBag,
-        permisosRequeridos: ["ver_compras", "ver_proveedores"],
+        permisosRequeridos: ["ver_compras", "ver_proveedores", "ver_reportes_compras", "ver_cuentas_pagar", "pagar_cuentas"],
         items: [
           { title: "Proveedores", url: "/dashboard/compras/proveedores", permisosRequeridos: ["ver_proveedores"] },
           { title: "Ingreso Mercancía", url: "/dashboard/compras/ingreso", permisosRequeridos: ["ver_compras"] },
+          { title: "Reporte Compras", url: "/dashboard/compras/historial", permisosRequeridos: ["ver_reportes_compras"] },
+          { title: "Cuentas por Pagar", url: "/dashboard/compras/cuentas-pagar", permisosRequeridos: ["ver_cuentas_pagar"] },
         ],
       },
     ],
   },
 
-  
   {
     grupo: "Administración",
     items: [
@@ -174,6 +191,13 @@ const menuData: MenuGroup[] = [
   {
     grupo: "Sistema",
     items: [
+      // 👇 NUEVO — Panel SUPER_ADMIN, visible solo para SUPER_ADMIN y ROOT
+      {
+        title: "Panel SUPER_ADMIN",
+        url: "/dashboard/super-admin",
+        icon: Building2,
+        soloSuperAdmin: true,
+      },
       {
         title: "Nuevo Cliente",
         url: "/dashboard/onboarding",
@@ -185,13 +209,13 @@ const menuData: MenuGroup[] = [
   },
 ]
 
-// ─── Componente ───────────────────────────────────────────────────────────────
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const user = useAuthStore((state) => state.user)
+  const user = useAuthStore((state) => state.user) as any
   const { permisos } = usePermisosStore()
 
   const esRoot = permisos.includes("ROOT")
+  // 👇 NUEVO — detectar SUPER_ADMIN por el rol del usuario en el store
+  const esSuperAdmin = user?.rol === "SUPER_ADMIN" || esRoot
 
   function tieneAcceso(permisosRequeridos: string[] = []): boolean {
     if (esRoot) return true
@@ -205,6 +229,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: grupo.items
         .filter((item) => {
           if (item.soloRoot) return esRoot
+          if (item.soloSuperAdmin) return esSuperAdmin // 👈 NUEVO filtro
           return tieneAcceso(item.permisosRequeridos)
         })
         .map((item) => ({

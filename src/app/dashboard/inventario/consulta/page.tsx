@@ -46,9 +46,9 @@ export default function ConsultaInventarioPage() {
           nombre: p.nombre,
           categoria: p.categoria,
           marca: p.marca,
-          stock: Number(p.stock || 0),
+          stock: Number(p.stock_disponible || 0),
           stock_minimo: Number(p.stock_minimo || 5),
-          precio_venta: Number(p.precio_base || 0)
+          precio_venta: Number(p.precio_venta || 0)
       }));
 
       setProductos(dataMapeada);

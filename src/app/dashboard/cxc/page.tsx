@@ -44,38 +44,39 @@ interface VendedorData {
 }
 
 interface FacturaCXC {
-  id_factura: string;
-  numero_control: string;
-  numero_consecutivo: number;
-  serie: string;
-  cliente: { 
-      id_cliente: string; 
-      razon_social: string; 
-      rif: string;
-      vendedor?: VendedorData;
-  };
-  vendedor?: VendedorData; 
-  total_pagar: string;
-  monto_pagado: string;
-  saldo_pendiente: string;
-  fecha_emision: string;
-  fecha_vencimiento: string; 
-}
+    id_factura: string;
+    serie: string;
+    numero_consecutivo: number;
+    cliente: { razon_social: string; rif: string; };
+    vendedor: string | null;
+    fecha_emision: string;
+    fecha_vencimiento: string;
+    total_pagar: number;
+    saldo_pendiente: number;
+    dias_vencidos: number;
+    no_vencido: number;
+    d0_30: number;
+    d30_60: number;
+    d60_90: number;
+    d_mas_90: number;
+  }
 
-export default function CuentasPorCobrarPage() {
-  const idEmpresa = getEmpresaId();
-  const [loading, setLoading] = useState(false);
-  const [facturas, setFacturas] = useState<FacturaCXC[]>([]);
-  const [searchTerm, setSearchTerm] = useState(""); 
-  const [filterVendedor, setFilterVendedor] = useState("TODOS"); 
+    export default function CuentasPorCobrarPage() {
+        const idEmpresa = getEmpresaId();
+        const [loading, setLoading] = useState(false);
+        const [facturas, setFacturas] = useState<FacturaCXC[]>([]);
+        const [searchTerm, setSearchTerm] = useState(""); 
+        const [filterVendedor, setFilterVendedor] = useState("TODOS");
+    
 
   // --- CARGA DE DATOS ---
   const fetchFacturas = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/facturas?id_empresa=${idEmpresa}`);
-      const conDeuda = res.data.filter((f: any) => Number(f.saldo_pendiente) > 0.01);
-      setFacturas(conDeuda);
+      const res = await api.get(`/facturas/aging`, {
+        params: { id_empresa: idEmpresa },
+      });
+      setFacturas(res.data.facturas);
     } catch (error) {
       toast.error("Error cargando cartera");
     } finally { setLoading(false); }
@@ -88,28 +89,10 @@ export default function CuentasPorCobrarPage() {
   // --- HELPERS ---
   // 👇 ACTUALIZADO: Lógica blindada para leer el nombre sin importar cómo venga de la BD
   const getNombreVendedor = (f: FacturaCXC): string | null => {
-      // Forzamos a 'any' internamente para evitar que TypeScript bloquee propiedades dinámicas
-      const v: any = f.vendedor || f.cliente?.vendedor;
-      if (!v) return null;
-
-      // 1. Intentamos armarlo si vienen separados
-      if (v.nombre && v.apellido) return `${v.nombre} ${v.apellido}`.trim();
-      if (v.nombres && v.apellidos) return `${v.nombres} ${v.apellidos}`.trim();
-
-      // 2. Intentamos buscar la propiedad única (la primera que exista)
-      return (
-        v.nombre_completo ||
-        v.nombre_apellido ||
-        v.nombre ||
-        v.nombres ||
-        v.usuario ||
-        v.username ||
-        v.email ||
-        v.razon_social ||
-        null
-      );
+    return f.vendedor ?? null;
   };
 
+  
   const calcularEstado = (vencimiento: string) => {
     const hoy = new Date();
     hoy.setHours(0,0,0,0);
@@ -144,8 +127,8 @@ export default function CuentasPorCobrarPage() {
   // --- FILTROS ---
   const vendedoresUnicos = useMemo(() => {
     const nombres = facturas
-        .map(f => getNombreVendedor(f))
-        .filter((nombre): nombre is string => !!nombre && nombre !== "");
+      .map(f => f.vendedor)
+      .filter((v): v is string => !!v);
     return Array.from(new Set(nombres));
   }, [facturas]);
 
@@ -162,16 +145,10 @@ export default function CuentasPorCobrarPage() {
 
   // --- KPIS ---
   const kpiCXC = useMemo(() => {
-      const totalDeuda = facturas.reduce((acc, f) => acc + Number(f.saldo_pendiente), 0);
-      const hoy = new Date();
-      hoy.setHours(0,0,0,0);
-      const totalVencido = facturas.reduce((acc, f) => {
-          const fechaVenc = new Date(f.fecha_vencimiento);
-          fechaVenc.setHours(0,0,0,0);
-          return fechaVenc < hoy ? acc + Number(f.saldo_pendiente) : acc;
-      }, 0);
-      const clientesActivos = new Set(facturas.map(f => f.cliente.id_cliente)).size;
-      return { totalDeuda, totalVencido, clientesActivos };
+    const totalDeuda    = facturas.reduce((acc, f) => acc + f.saldo_pendiente, 0);
+    const totalVencido  = facturas.reduce((acc, f) => acc + f.d0_30 + f.d30_60 + f.d60_90 + f.d_mas_90, 0);
+    const clientesActivos = new Set(facturas.map(f => f.cliente.rif)).size;
+    return { totalDeuda, totalVencido, clientesActivos };
   }, [facturas]);
 
   // --- REPORTES ---
@@ -465,3 +442,4 @@ export default function CuentasPorCobrarPage() {
     </div>
   );
 }
+

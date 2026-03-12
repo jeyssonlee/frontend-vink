@@ -18,3 +18,9 @@ export const getAlmacenId = () => {
   const user = useAuthStore.getState().user as any;
   return user?.id_almacen ?? null;
 };
+
+export const getVendedorId = () => {
+  if (typeof window === "undefined") return null;
+  const user = useAuthStore.getState().user as any;
+  return user?.id_vendedor ?? null;
+};

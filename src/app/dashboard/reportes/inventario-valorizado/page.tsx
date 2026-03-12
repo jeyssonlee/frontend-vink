@@ -34,14 +34,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface ReporteItem {
-  id_producto: string;
-  codigo: string;
-  nombre: string;
-  categoria: string;
-  marca: string;
-  stock: number;
-  costo_promedio: number;
-}
+    id_producto: string;
+    codigo: string;
+    nombre: string;
+    categoria: string;
+    marca: string;
+    stock: number;           // ← stock_total del backend
+    stock_disponible: number;
+    stock_apartado: number;
+    costo_promedio: number;  // ← costo_unitario del backend
+  }
 
 export default function InventarioValorizadoPage() {
   const [data, setData] = useState<ReporteItem[]>([]);
@@ -62,24 +64,22 @@ export default function InventarioValorizadoPage() {
     if (!idEmpresa) return;
     try {
       setLoading(true);
-      const res = await api.get(`/productos?id_empresa=${idEmpresa}`);
-      
-      const itemsMapeados = res.data.map((p: any) => {
-        const invData = p.inventarios && p.inventarios.length > 0 ? p.inventarios[0] : null;
-        const costoReal = Number(invData?.costo_unitario || p.costo || p.precio_compra || p.precio_base || 0);
-        const stockReal = Number(invData?.cantidad || p.stock || 0);
-
-        return {
-          id_producto: p.id_producto,
-          codigo: p.codigo,
-          nombre: p.nombre,
-          categoria: p.categoria || "Sin Categoría",
-          marca: p.marca || "Genérico",
-          stock: stockReal,
-          costo_promedio: costoReal,
-        };
+      const res = await api.get(`/productos/inventario-valorizado`, {
+        params: { id_empresa: idEmpresa },
       });
-      
+  
+      const itemsMapeados = res.data.map((p: any) => ({
+        id_producto:      p.id_producto,
+        codigo:           p.codigo,
+        nombre:           p.nombre,
+        categoria:        p.categoria ?? "Sin Categoría",
+        marca:            p.marca     ?? "Genérico",
+        stock:            Number(p.stock_total),
+        stock_disponible: Number(p.stock_disponible),
+        stock_apartado:   Number(p.stock_apartado),
+        costo_promedio:   Number(p.costo_unitario),
+      }));
+  
       setData(itemsMapeados);
     } catch (error) {
       toast.error("Error obteniendo datos del inventario");
