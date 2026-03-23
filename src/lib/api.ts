@@ -10,9 +10,11 @@ export const api = axios.create({
 
 // Interceptor: agrega el token desde el store antes de cada request
 api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token; // ← lee directo del store, sin hooks
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (!config.headers.Authorization) {           // ← solo si no viene ya seteado
+    const token = useAuthStore.getState().token;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });

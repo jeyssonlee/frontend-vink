@@ -1,26 +1,28 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Upload } from "lucide-react"
+import { Plus, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { MovimientosFiltros } from "./components/MovimientosFiltros"
 import { MovimientosTabla } from "./components/MovimientosTabla"
 import { MovimientoDetalle } from "./components/MovimientoDetalle"
 import { getMovimientos } from "./api"
 import type { Movimiento, MovimientosFilters, MovimientosResponse } from "./types"
-import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
+import { MovimientoEditDialog } from "./components/MovimientoEditDialog"
+import { MovimientoManualDialog, MovimientoManual } from "./components/MovimientoManualDialog"
 
-const DEFAULT_FILTERS: MovimientosFilters = {
-  page: 1,
-  limit: 25,
-}
+
+const DEFAULT_FILTERS: MovimientosFilters = {}
 
 export function MovimientosView() {
   const [filters, setFilters] = useState<MovimientosFilters>(DEFAULT_FILTERS)
   const [data, setData] = useState<MovimientosResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Movimiento | null>(null)
+  const [editing, setEditing] = useState<Movimiento | null>(null)
+  const [manualOpen, setManualOpen] = useState(false)
+  const [manualEditing, setManualEditing] = useState<MovimientoManual | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -38,38 +40,34 @@ export function MovimientosView() {
     fetchData()
   }, [fetchData])
 
-  // Derived totals from current page (replace with server-side aggregates if available)
-  const pageIngresos = data?.data.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + m.monto, 0) ?? 0
-  const pageEgresos = data?.data.filter((m) => m.tipo === "egreso").reduce((s, m) => s + m.monto, 0) ?? 0
+  const handleSaved = (updated: Movimiento) => {
+    setData((prev) => prev ? {
+      ...prev,
+      movimientos: prev.movimientos.map((m) => m.id === updated.id ? updated : m)
+    } : prev)
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
-      <div className="border-b border-zinc-900 bg-zinc-950/80 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <div className="border-b border-slate-200 bg-white sticky top-0 z-20 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-medium text-zinc-500 uppercase tracking-widest">Banco</p>
-            <h1 className="text-base font-semibold text-zinc-100 leading-tight mt-0.5">Movimientos</h1>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-widest">Banco</p>
+            <h1 className="text-base font-semibold text-slate-900 leading-tight mt-0.5">Movimientos</h1>
           </div>
           <div className="flex items-center gap-3">
-            {/* Quick totals */}
-            {data && (
-              <div className="hidden sm:flex items-center gap-4 text-xs">
-                <div className="text-right">
-                  <p className="text-zinc-600">Ingresos (pág.)</p>
-                  <p className="font-semibold text-emerald-400 tabular-nums">{formatCurrency(pageIngresos)}</p>
-                </div>
-                <div className="w-px h-6 bg-zinc-800" />
-                <div className="text-right">
-                  <p className="text-zinc-600">Egresos (pág.)</p>
-                  <p className="font-semibold text-red-400 tabular-nums">{formatCurrency(pageEgresos)}</p>
-                </div>
-              </div>
-            )}
+
+          <Button onClick={() => { setManualEditing(null); setManualOpen(true) }}
+             size="sm" variant="outline" className="h-8 text-xs gap-1.5 border-slate-300">
+              <Plus className="h-3.5 w-3.5" />
+                Registrar
+              </Button>
+
             <Button
               asChild
               size="sm"
-              className="h-8 bg-teal-600 hover:bg-teal-500 text-white text-xs gap-1.5"
+              className="h-8 bg-emerald-600 hover:bg-emerald-500 text-white text-xs gap-1.5"
             >
               <Link href="/dashboard/banco/importacion">
                 <Upload className="h-3.5 w-3.5" />
@@ -81,19 +79,27 @@ export function MovimientosView() {
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-6 py-6 space-y-4">
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-4">
         <MovimientosFiltros filters={filters} onChange={setFilters} />
         <MovimientosTabla
           data={data}
           loading={loading}
-          page={filters.page}
+          page={filters.page ?? 1}
           onPageChange={(p) => setFilters((f) => ({ ...f, page: p }))}
           onRowClick={setSelected}
-        />
+          onEdit={setEditing} />
+          <MovimientoManualDialog
+          open={manualOpen}
+          movimiento={manualEditing}
+          onClose={() => setManualOpen(false)}
+          onSaved={() => { setManualOpen(false); fetchData() }}
+          />
+
       </div>
 
-      {/* Detail panel */}
+      {/* Detail modal */}
       <MovimientoDetalle movimiento={selected} onClose={() => setSelected(null)} />
+      <MovimientoEditDialog movimiento={editing} onClose={() => setEditing(null)} onSaved={handleSaved} />
     </div>
   )
 }

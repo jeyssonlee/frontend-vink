@@ -1,10 +1,5 @@
-import type { Metadata } from "next"
-import { DashboardBanco } from "./DashboardBanco"
-
-export const metadata: Metadata = {
-  title: "Dashboard Banco | ERP VINK",
-}
+import { DashboardBancoView } from "./DashboardBancoView"
 
 export default function DashboardBancoPage() {
-  return <DashboardBanco />
+  return <DashboardBancoView />
 }

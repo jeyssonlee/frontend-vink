@@ -14,6 +14,13 @@ export function formatCurrency(amount: number, currency = "USD"): string {
   }).format(amount)
 }
 
+export function formatBs(amount: number): string {
+  return `Bs. ${new Intl.NumberFormat("es-VE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)}`
+}
+
 // The cn() function should already exist if you set up shadcn/ui:
 // export function cn(...inputs: ClassValue[]) {
 //   return twMerge(clsx(inputs))

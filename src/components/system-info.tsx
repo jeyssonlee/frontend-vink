@@ -34,20 +34,15 @@ export function SystemInfo() {
     const user = getSessionUser();
     
     if (user) {
-      // 1. EMPRESA: Tu backend la envía directo en la propiedad 'empresa' (string)
       const nombreEmpresa = user.empresa || "Empresa Desconocida";
-
-      // 2. HOLDING: Ahora lo leeremos de la nueva propiedad que agregamos
-      const holding = user.holding || null;
-
-      // 3. SUCURSAL: Tu backend la envía directo en 'sucursal' (string)
-      const sucursal = user.sucursal || null;
-
-      // 4. USUARIO Y ROL
       const nombreUsuario = user.nombre || "Usuario";
       const rolUsuario = user.rol || "Usuario";
-      
       const iniciales = nombreUsuario.substring(0, 2).toUpperCase();
+
+      // El store `auth-store` actualmente no expone `holding` ni `sucursal`.
+      // Se dejan en `null` para evitar errores de tipado y ocultar esas secciones.
+      const holding = null;
+      const sucursal = null;
 
       setData({
         usuario: nombreUsuario,

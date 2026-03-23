@@ -1,12 +1,22 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Upload, FileSpreadsheet, AlertCircle, Loader2, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { uploadExtracto } from "../importacion/api"
-import type { Paso1Response } from "../importacion/types"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { uploadExtracto } from "../api"
+import { api } from "@/lib/api"
+import type { Paso1Response } from "../types"
 import { cn } from "@/lib/utils"
+
+interface CuentaBancaria {
+  id: number
+  nombre: string
+  banco_key: string
+  numero_cuenta: string
+  moneda: string
+}
 
 interface Props {
   onSuccess: (data: Paso1Response) => void
@@ -17,31 +27,37 @@ export function Paso1Upload({ onSuccess }: Props) {
   const [isDragging, setIsDragging] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cuentas, setCuentas] = useState<CuentaBancaria[]>([])
+  const [idCuenta, setIdCuenta] = useState<string>("")
+
+  useEffect(() => {
+    api.get("/banco/cuentas")
+      .then(({ data }) => {
+        const activas = data.filter((c: any) => c.activa)
+        setCuentas(activas)
+        if (activas.length === 1) setIdCuenta(String(activas[0].id))
+      })
+      .catch(() => setError("No se pudieron cargar las cuentas bancarias"))
+  }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
     const dropped = e.dataTransfer.files[0]
-    if (dropped) {
-      setFile(dropped)
-      setError(null)
-    }
+    if (dropped) { setFile(dropped); setError(null) }
   }, [])
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0]
-    if (selected) {
-      setFile(selected)
-      setError(null)
-    }
+    if (selected) { setFile(selected); setError(null) }
   }
 
   const handleSubmit = async () => {
-    if (!file) return
+    if (!file || !idCuenta) return
     setLoading(true)
     setError(null)
     try {
-      const result = await uploadExtracto(file)
+      const result = await uploadExtracto(file, Number(idCuenta))
       onSuccess(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al procesar el archivo")
@@ -58,6 +74,25 @@ export function Paso1Upload({ onSuccess }: Props) {
           El sistema detecta automáticamente el banco por el contenido del archivo.
           Compatible con Bancamiga y otros bancos configurados.
         </p>
+      </div>
+
+      {/* Selector de cuenta */}
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">
+          Cuenta bancaria
+        </label>
+        <Select value={idCuenta} onValueChange={setIdCuenta} disabled={loading}>
+          <SelectTrigger className="h-10 bg-zinc-900 border-zinc-700 text-zinc-100">
+            <SelectValue placeholder="Selecciona una cuenta…" />
+          </SelectTrigger>
+          <SelectContent>
+            {cuentas.map((c) => (
+              <SelectItem key={c.id} value={String(c.id)}>
+                {c.nombre} — {c.numero_cuenta} ({c.moneda})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Drop Zone */}
@@ -82,7 +117,6 @@ export function Paso1Upload({ onSuccess }: Props) {
           onChange={handleFileInput}
           disabled={loading}
         />
-
         {file ? (
           <>
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-500/10 ring-1 ring-teal-500/30">
@@ -99,9 +133,7 @@ export function Paso1Upload({ onSuccess }: Props) {
           <>
             <div className={cn(
               "flex h-14 w-14 items-center justify-center rounded-full transition-all",
-              isDragging
-                ? "bg-teal-500/20 ring-1 ring-teal-400/50"
-                : "bg-zinc-800 ring-1 ring-zinc-700"
+              isDragging ? "bg-teal-500/20 ring-1 ring-teal-400/50" : "bg-zinc-800 ring-1 ring-zinc-700"
             )}>
               <Upload className={cn("h-6 w-6 transition-colors", isDragging ? "text-teal-300" : "text-zinc-400")} />
             </div>
@@ -139,7 +171,7 @@ export function Paso1Upload({ onSuccess }: Props) {
 
       <Button
         onClick={handleSubmit}
-        disabled={!file || loading}
+        disabled={!file || !idCuenta || loading}
         className="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium h-11 transition-colors disabled:opacity-40"
       >
         {loading ? (

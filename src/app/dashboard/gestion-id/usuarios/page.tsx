@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Plus, Pencil, Search, ShieldCheck, User, Mail, Lock,
-  RefreshCcw, ToggleLeft, ToggleRight, Shield, Users
+  RefreshCcw, ToggleLeft, ToggleRight, Shield, Users, Building2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
@@ -37,16 +37,16 @@ interface Usuario {
   activo: boolean;
   rol?: { id_rol: string; nombre: string };
   sucursal?: { id_sucursal: string; nombre: string };
+  empresa?: { id: string; razon_social: string };
 }
-
-const ROL_OPTIONS = ["SUPER_ADMIN", "ADMIN", "VENDEDOR", "ALMACEN"];
 
 const formSchema = z.object({
   nombre_completo: z.string().min(3, "Nombre obligatorio"),
   correo: z.string().email("Correo inválido"),
   clave: z.string().optional(),
   rol: z.string().min(1, "Selecciona un rol"),
-  id_sucursal: z.string().min(1, "Selecciona una sucursal"),
+  id_empresa: z.string().min(1, "Selecciona una empresa"),
+  id_sucursal: z.string().optional(),
 });
 
 export default function UsuariosPage() {
@@ -56,44 +56,81 @@ export default function UsuariosPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editarItem, setEditarItem] = useState<Usuario | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [empresas, setEmpresas] = useState<any[]>([]);
   const [sucursales, setSucursales] = useState<any[]>([]);
-  const idEmpresa = getEmpresaId();
+  const [roles, setRoles] = useState<any[]>([]);
+  const idEmpresaActual = getEmpresaId();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
-      nombre_completo: "", correo: "", clave: "", rol: "VENDEDOR", id_sucursal: ""
+      nombre_completo: "", correo: "", clave: "",
+      rol: "VENDEDOR", id_empresa: "", id_sucursal: "",
     },
   });
 
+  const empresaSeleccionada = form.watch("id_empresa");
+
+  // ── Fetchers ──────────────────────────────────────────────
+
   const fetchUsuarios = async () => {
-    if (!idEmpresa) return;
+    if (!idEmpresaActual) return;
     try {
       setIsLoading(true);
-      const { data } = await api.get(`/usuarios?id_empresa=${idEmpresa}`);
+      const { data } = await api.get(`/usuarios?id_empresa=${idEmpresaActual}`);
       setUsuarios(data);
       setFiltered(data);
-    } catch (error) {
+    } catch {
       toast.error("Error cargando usuarios");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchSucursales = async () => {
-    if (!idEmpresa) return;
+  const fetchEmpresas = async () => {
     try {
-      const { data } = await api.get(`/sucursales?id_empresa=${idEmpresa}`);
-      setSucursales(data);
-    } catch (error) {
-      console.error("Error cargando sucursales");
+      // Intenta cargar todas las empresas del holding para el selector
+      const { data } = await api.get("/empresas");
+      setEmpresas(Array.isArray(data) ? data : data.empresas ?? []);
+    } catch {
+      console.error("Error cargando empresas");
     }
   };
 
+  const fetchSucursales = async (idEmpresa: string) => {
+    if (!idEmpresa) { setSucursales([]); return; }
+    try {
+      const { data } = await api.get(`/sucursales?id_empresa=${idEmpresa}`);
+      setSucursales(Array.isArray(data) ? data : []);
+    } catch {
+      setSucursales([]);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const { data } = await api.get("/roles");
+      setRoles(Array.isArray(data) ? data : []);
+    } catch {
+      console.error("Error cargando roles");
+    }
+  };
+
+  // ── Effects ───────────────────────────────────────────────
+
   useEffect(() => {
     fetchUsuarios();
-    fetchSucursales();
-  }, [idEmpresa]);
+    fetchEmpresas();
+    fetchRoles();
+  }, [idEmpresaActual]);
+
+  // Cuando cambia la empresa seleccionada en el form, recarga sucursales
+  useEffect(() => {
+    if (empresaSeleccionada) {
+      fetchSucursales(empresaSeleccionada);
+      form.setValue("id_sucursal", ""); // limpia sucursal al cambiar empresa
+    }
+  }, [empresaSeleccionada]);
 
   useEffect(() => {
     const term = busqueda.toLowerCase();
@@ -106,13 +143,16 @@ export default function UsuariosPage() {
     );
   }, [busqueda, usuarios]);
 
+  // ── Submit ────────────────────────────────────────────────
+
   const onSubmit = async (values: any) => {
     if (!editarItem && (!values.clave || values.clave.length < 6)) {
       form.setError("clave", { message: "Clave obligatoria (mín. 6 caracteres)" });
       return;
     }
     try {
-      const payload = { ...values, id_empresa: idEmpresa };
+      const payload = { ...values };
+      if (!payload.id_sucursal) delete payload.id_sucursal;
       if (editarItem && !payload.clave) delete payload.clave;
 
       if (editarItem) {
@@ -129,12 +169,14 @@ export default function UsuariosPage() {
     }
   };
 
+  // ── Helpers ───────────────────────────────────────────────
+
   const handleToggleActivo = async (usuario: Usuario) => {
     try {
       await api.patch(`/usuarios/${usuario.id}/toggle-activo`);
       toast.success(`Usuario ${usuario.activo ? "desactivado" : "activado"}`);
       fetchUsuarios();
-    } catch (error) {
+    } catch {
       toast.error("Error al cambiar estado");
     }
   };
@@ -142,29 +184,40 @@ export default function UsuariosPage() {
   const openModal = (usuario?: Usuario) => {
     if (usuario) {
       setEditarItem(usuario);
+      const idEmp = usuario.empresa?.id || idEmpresaActual || "";
       form.reset({
         nombre_completo: usuario.nombre_completo,
         correo: usuario.correo,
         clave: "",
         rol: usuario.rol?.nombre || "VENDEDOR",
+        id_empresa: idEmp,
         id_sucursal: usuario.sucursal?.id_sucursal || "",
       });
+      if (idEmp) fetchSucursales(idEmp);
     } else {
       setEditarItem(null);
-      form.reset({ nombre_completo: "", correo: "", clave: "", rol: "VENDEDOR", id_sucursal: "" });
+      form.reset({
+        nombre_completo: "", correo: "", clave: "",
+        rol: "VENDEDOR", id_empresa: idEmpresaActual || "", id_sucursal: "",
+      });
+      if (idEmpresaActual) fetchSucursales(idEmpresaActual);
     }
     setIsDialogOpen(true);
   };
 
   const getRolColor = (rol?: string) => {
     switch (rol) {
-      case "SUPER_ADMIN": return "bg-red-50 text-red-700 border-red-200";
-      case "ADMIN": return "bg-purple-50 text-purple-700 border-purple-200";
-      case "VENDEDOR": return "bg-blue-50 text-blue-700 border-blue-200";
-      case "ALMACEN": return "bg-amber-50 text-amber-700 border-amber-200";
-      default: return "bg-slate-50 text-slate-700 border-slate-200";
+      case "ROOT":        return "bg-red-50 text-red-700 border-red-200";
+      case "SUPER_ADMIN": return "bg-orange-50 text-orange-700 border-orange-200";
+      case "GERENCIA":    return "bg-purple-50 text-purple-700 border-purple-200";
+      case "VENTAS":      return "bg-blue-50 text-blue-700 border-blue-200";
+      case "ALMACEN":     return "bg-amber-50 text-amber-700 border-amber-200";
+      case "VENDEDOR":    return "bg-slate-50 text-slate-700 border-slate-200";
+      default:            return "bg-slate-50 text-slate-600 border-slate-200";
     }
   };
+
+  // ── Render ────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-screen bg-slate-50/30 overflow-hidden text-sm">
@@ -179,12 +232,7 @@ export default function UsuariosPage() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs gap-1.5"
-            onClick={fetchUsuarios}
-          >
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={fetchUsuarios}>
             <RefreshCcw className="h-3 w-3" /> Actualizar
           </Button>
           <Button
@@ -210,8 +258,6 @@ export default function UsuariosPage() {
               <p className="text-sm text-slate-500">Gestión de accesos, roles y credenciales de seguridad.</p>
             </div>
           </div>
-
-          {/* BUSCADOR */}
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <input
@@ -231,6 +277,7 @@ export default function UsuariosPage() {
                 <TableHead className="font-bold text-slate-700 py-4 pl-6 text-[13px] uppercase tracking-wider">Usuario</TableHead>
                 <TableHead className="font-bold text-slate-700 text-[13px] uppercase tracking-wider">Correo</TableHead>
                 <TableHead className="font-bold text-slate-700 text-[13px] uppercase tracking-wider">Rol</TableHead>
+                <TableHead className="font-bold text-slate-700 text-[13px] uppercase tracking-wider">Empresa</TableHead>
                 <TableHead className="font-bold text-slate-700 text-[13px] uppercase tracking-wider">Sucursal</TableHead>
                 <TableHead className="font-bold text-slate-700 text-[13px] uppercase tracking-wider text-center">Estado</TableHead>
                 <TableHead className="text-right pr-6 font-bold text-slate-700 text-[13px] uppercase tracking-wider">Acciones</TableHead>
@@ -239,13 +286,13 @@ export default function UsuariosPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-40 text-center text-slate-400 italic">
+                  <TableCell colSpan={7} className="h-40 text-center text-slate-400 italic">
                     Cargando usuarios...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-40 text-center text-slate-400 italic">
+                  <TableCell colSpan={7} className="h-40 text-center text-slate-400 italic">
                     No se encontraron usuarios.
                   </TableCell>
                 </TableRow>
@@ -272,6 +319,12 @@ export default function UsuariosPage() {
                         <Shield className="h-2.5 w-2.5 mr-1 inline" />
                         {u.rol?.nombre || "Sin rol"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                        <Building2 className="h-3 w-3 text-slate-400" />
+                        {u.empresa?.razon_social || "—"}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-slate-500">{u.sucursal?.nombre || "—"}</span>
@@ -322,9 +375,11 @@ export default function UsuariosPage() {
               {editarItem ? "Editar Usuario" : "Crear Nuevo Usuario"}
             </DialogTitle>
           </DialogHeader>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 space-y-5 bg-white">
 
+              {/* Nombre + Correo */}
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="nombre_completo" render={({ field }: any) => (
                   <FormItem>
@@ -342,37 +397,72 @@ export default function UsuariosPage() {
                 )} />
               </div>
 
+              {/* Rol */}
+              <FormField control={form.control} name="rol" render={({ field }: any) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-bold text-slate-500 uppercase">Rol del Sistema</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Seleccionar rol" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {roles.length > 0
+                        ? roles.map((r: any) => (
+                            <SelectItem key={r.id_rol} value={r.nombre}>{r.nombre}</SelectItem>
+                          ))
+                        : ["SUPER_ADMIN", "VENTAS", "COBRANZAS", "GERENCIA", "ALMACEN", "VENDEDOR", "SUPERVISOR DE VENTAS"].map(r => (
+                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                          ))
+                      }
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Empresa + Sucursal */}
               <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="rol" render={({ field }: any) => (
+                <FormField control={form.control} name="id_empresa" render={({ field }: any) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-bold text-slate-500 uppercase">Rol del Sistema</FormLabel>
+                    <FormLabel className="text-xs font-bold text-slate-500 uppercase">Empresa</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Seleccionar rol" />
+                          <SelectValue placeholder="Seleccionar empresa" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {ROL_OPTIONS.map(r => (
-                          <SelectItem key={r} value={r}>{r}</SelectItem>
+                        {empresas.map((e: any) => (
+                          <SelectItem key={e.id} value={e.id}>{e.razon_social}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )} />
+
                 <FormField control={form.control} name="id_sucursal" render={({ field }: any) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-bold text-slate-500 uppercase">Sucursal</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <FormLabel className="text-xs font-bold text-slate-500 uppercase">
+                      Sucursal <span className="text-slate-400 normal-case font-normal">(opcional)</span>
+                    </FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={!empresaSeleccionada || sucursales.length === 0}
+                    >
                       <FormControl>
                         <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Seleccionar sucursal" />
+                          <SelectValue placeholder={sucursales.length === 0 ? "Sin sucursales" : "Seleccionar sucursal"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {sucursales.map((s: any) => (
-                          <SelectItem key={s.id_sucursal} value={s.id_sucursal}>{s.nombre}</SelectItem>
+                          <SelectItem key={s.id_sucursal ?? s.id} value={s.id_sucursal ?? s.id}>
+                            {s.nombre}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -381,7 +471,7 @@ export default function UsuariosPage() {
                 )} />
               </div>
 
-              {/* SECCIÓN SEGURIDAD */}
+              {/* Credenciales */}
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-4">
                 <div className="flex items-center gap-2 text-slate-900">
                   <ShieldCheck className="size-4 text-blue-600" />

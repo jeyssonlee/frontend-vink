@@ -25,6 +25,21 @@ const MODULOS_PERMISOS = [
     ],
   },
   {
+    modulo: "Banco",
+    permisos: [
+      { key: "ver_cuentas_bancarias", label: "Ver cuentas bancarias" },
+      { key: "crear_cuentas_bancarias", label: "Crear cuentas bancarias" },
+      { key: "editar_cuentas_bancarias", label: "Editar cuentas bancarias" },
+      { key: "eliminar_cuentas_bancarias", label: "Eliminar cuentas bancarias" },
+      { key: "ver_movimientos", label: "Ver movimientos" },
+      { key: "importar_extractos", label: "Importar extractos bancarios" },
+      { key: "ver_tasa_bcv", label: "Ver tasa BCV" },
+      { key: "editar_tasa_bcv", label: "Editar tasa BCV" },
+      { key: "ver_dashboard_banco", label: "Ver Resumen de Cuentas"},
+      { key: "ver_movimientos_manuales", label: "Ver Movimientos Manuales"}
+    ],
+  },
+  {
     modulo: "Usuarios",
     permisos: [
       { key: "ver_usuarios", label: "Ver usuarios" },
